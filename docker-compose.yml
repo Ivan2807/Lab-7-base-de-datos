@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15
+    container_name: retailmax_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: retailmax
+      POSTGRES_USER: retailmax_user
+      POSTGRES_PASSWORD: retailmax_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d   # loads 01_setup.sh, 02_ddl.sql, 03_data.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U retailmax_user -d retailmax"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - retailmax_net
+
+  # ── Metabase ────────────────────────────────────────────────────────────────
+  metabase:
+    image: metabase/metabase:v0.49.9
+    container_name: retailmax_metabase
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      JAVA_TIMEZONE: America/Guatemala
+    volumes:
+      - ./metabase-data:/metabase-data
+    networks:
+      - retailmax_net
+volumes:
+  pgdata:
+
+networks:
+  retailmax_net:
+    driver: bridge
